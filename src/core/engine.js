@@ -99,17 +99,17 @@ class Engine extends EventEmitter {
 
   /** Discord can only show album art from an https URL. Players that give raw image bytes get an iTunes lookup. */
   async fillArtwork(track) {
-    const key = track.key;
+    const key = artKey(track);
     if (/^https:\/\//.test(track.artUrl || '')) { this.webArt.set(key, track.artUrl); }
     if (this.webArt.has(key)) return;
     this.webArt.set(key, null);
     if (this.webArt.size > 300) this.webArt.delete(this.webArt.keys().next().value);
     const found = await lookupTrack(track);
     if (found && track.fromWindow && (found.duration || found.album)) {
-      this.extra.set(key, { duration: found.duration, album: found.album });
+      this.extra.set(track.key, { duration: found.duration, album: found.album });
       if (this.extra.size > 300) this.extra.delete(this.extra.keys().next().value);
       for (const p of this.players) {
-        if (p.key !== key) continue;
+        if (artKey(p) !== key) continue;
         if (!p.duration && found.duration) p.duration = found.duration;
         if (!p.album && found.album) p.album = found.album;
       }
@@ -117,7 +117,7 @@ class Engine extends EventEmitter {
     const url = found && found.art;
     if (!url) { this.tick(); return; }
     this.webArt.set(key, url);
-    if (this.current && this.current.key === key && !this.current.artUrl) {
+    if (this.current && artKey(this.current) === key && !this.current.artUrl) {
       this.current.artUrl = url;
       const p = this.players.find((x) => x.id === track.id);
       if (p) p.artUrl = url;
@@ -177,7 +177,7 @@ class Engine extends EventEmitter {
       position: pos,
       cfg,
       now: at,
-      art: this.webArt.get(t.key) || (/^https:\/\//.test(t.artUrl || '') ? t.artUrl : null),
+      art: this.webArt.get(artKey(t)) || (/^https:\/\//.test(t.artUrl || '') ? t.artUrl : null),
       paused,
       hidden: isHidden(t, cfg.privacy.hideList),
       start
@@ -298,6 +298,11 @@ class Engine extends EventEmitter {
   emitState() {
     this.emit('state', this.getState());
   }
+}
+
+/** Same song on another album (single vs. album vs. compilation) has another cover. */
+function artKey(t) {
+  return `${t.key}|${String(t.album || '').toLowerCase()}`;
 }
 
 function discordProblem(s) {

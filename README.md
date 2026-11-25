@@ -91,7 +91,7 @@ Check Settings → Activity, or the log: `%APPDATA%\TuneCord\logs\main.log` (Win
 
 ## How it works
 
-TuneCord reads "now playing" from your OS (the same source as your media keys) and sends it to the Discord desktop app over Discord's local Rich Presence socket. No account login, no tokens, no internet calls except the optional album-art lookup (iTunes Search API) and the images Discord loads itself.
+TuneCord reads "now playing" from your OS (the same source as your media keys) and sends it to the Discord desktop app over Discord's local Rich Presence socket. No account login, no tokens, no internet calls except the album-cover lookup (Deezer and iTunes search, no account) and the images Discord loads itself.
 
 - Updates are rate-limited to Discord's limit (5 per 20 s); only the newest one is sent.
 - The progress bar uses start/end timestamps, so Discord animates it without extra updates. Seeking resets it.

@@ -29,6 +29,7 @@ if (-not $manager) { [Console]::Out.WriteLine('{"error":"Windows media sessions 
 $artCache = @{}
 $sentArt = @{}
 $artTries = @{}
+$prevArt = @{}   # session id -> thumbnail of the previous song (to spot a stale cover)
 $lastSessions = @()
 
 function Get-Art($session, $props, $key) {
@@ -77,10 +78,16 @@ function Read-Sessions {
             $id = "$($s.SourceAppUserModelId)#$i"
             $art = $null
             if ($sentArt[$id] -ne $key) {
-                $art = Get-Art $s $p $key
                 $tries = 1 + [int]$artTries[$key]
                 $artTries[$key] = $tries
-                if ($art -or $tries -ge 5) { $sentArt[$id] = $key }
+                $art = Get-Art $s $p $key
+                # Right after a song change Windows often still hands out the OLD cover.
+                # Same picture as the previous song? Wait and ask again (up to 5 times).
+                if ($art -and $prevArt[$id] -and $art -eq $prevArt[$id] -and $tries -lt 5) {
+                    $artCache.Remove($key)
+                    $art = $null
+                }
+                if ($art -or $tries -ge 5) { $sentArt[$id] = $key; if ($art) { $prevArt[$id] = $art } }
                 if ($artTries.Count -gt 200) { $artTries.Clear() }
             }
             [void]$out.Add([ordered]@{

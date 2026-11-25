@@ -111,8 +111,8 @@ function setup(cfgPatch = {}) {
   let now = 1_000_000;
   const history = new History(dir);
   const engine = new Engine({ config, media, discord, history, now: () => now });
-  engine.webArt.set('m83|midnight city', 'https://art/x.jpg'); // skip network lookups
-  engine.webArt.set('m83|wait', 'https://art/y.jpg');
+  // skip network lookups
+  for (const k of ['m83|midnight city|hurry up', 'm83|midnight city|', 'm83|wait|hurry up', 'x|video|hurry up']) engine.webArt.set(k, 'https://art/x.jpg');
   engine.start();
   clearInterval(engine.timer);
   return { engine, media, discord, config, history, advance: (ms) => { now += ms; engine.tick(); }, at: () => now };
@@ -345,4 +345,43 @@ test('inline helper fits the Windows command-line limit and round-trips', () => 
   const back = Buffer.from(enc, 'base64').toString('utf16le');
   assert.match(back, /GlobalSystemMediaTransportControlsSessionManager/);
   assert.ok(!/^\s*#/m.test(back));
+});
+
+/* ---------------- cover lookup: only accept real matches ---------------- */
+
+const { lookupTrack, scoreCandidate, norm } = require('../src/core/artwork');
+const cand = (o) => ({ source: 'itunes', title: 'Midnight City', artist: 'M83', album: "Hurry Up, We're Dreaming", duration: 244, art: 'https://ok', ...o });
+const playing = { title: 'Midnight City', artist: 'M83', album: "Hurry Up, We're Dreaming", duration: 243 };
+
+test('normalizing titles drops feat./remaster/brackets', () => {
+  assert.strictEqual(norm('Blinding Lights (feat. X) - 2020 Remaster'), 'blinding lights');
+  assert.strictEqual(norm('Café del Mar [Live]'), 'cafe del mar');
+});
+
+test('cover versions, karaoke and wrong artists are rejected', () => {
+  assert.ok(scoreCandidate(playing, cand()) >= 10);
+  assert.strictEqual(scoreCandidate(playing, cand({ artist: 'The Midnight' })), 0);
+  assert.strictEqual(scoreCandidate(playing, cand({ title: 'Wait' })), 0);
+  assert.ok(scoreCandidate(playing, cand({ artist: 'M83', title: 'Midnight City (Karaoke Version)', album: 'Karaoke Hits' })) < 6);
+});
+
+test('lookup picks the right album over the first result', async () => {
+  const fake = async () => [
+    cand({ album: 'Now That\'s What I Call Music 80', duration: 243, art: 'https://compilation' }),
+    cand({ artist: 'Piano Tribute Players', title: 'Midnight City', art: 'https://tribute' }),
+    cand({ art: 'https://right' })
+  ];
+  const r = await lookupTrack({ ...playing, title: 'Midnight City ' }, { search: [fake] });
+  assert.strictEqual(r.art, 'https://right');
+});
+
+test('no convincing match = no cover (logo instead of a wrong one)', async () => {
+  const fake = async () => [cand({ artist: 'Someone Else', art: 'https://wrong' })];
+  const r = await lookupTrack({ title: 'Obscure Song', artist: 'Tiny Band' }, { search: [fake] });
+  assert.strictEqual(r, null);
+});
+
+test('featured artists still match', () => {
+  const t = { title: 'Under Pressure', artist: 'Queen, David Bowie' };
+  assert.ok(scoreCandidate(t, { title: 'Under Pressure', artist: 'Queen & David Bowie', art: 'x' }) >= 6);
 });
