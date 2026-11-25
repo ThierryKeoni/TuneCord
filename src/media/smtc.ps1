@@ -10,9 +10,10 @@ $asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-O
     $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and
     $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' })[0]
 
-function Await($op, [Type]$type) {
+# Wait at most $ms for a Windows call. Never block forever: some players don't answer.
+function Await($op, [Type]$type, [int]$ms = 3000) {
     $t = $asTaskGeneric.MakeGenericMethod($type).Invoke($null, @($op))
-    [void]$t.Wait(5000)
+    if (-not $t.Wait($ms)) { return $null }
     return $t.Result
 }
 
@@ -23,7 +24,8 @@ $MgrType   = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMan
 $PropsType = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties]
 $StreamType = [Windows.Storage.Streams.IRandomAccessStreamWithContentType]
 
-$manager = Await ($MgrType::RequestAsync()) $MgrType
+$manager = Await ($MgrType::RequestAsync()) $MgrType 15000
+if (-not $manager) { [Console]::Out.WriteLine('{"error":"Windows media sessions did not respond"}'); [Console]::Out.Flush(); exit 3 }
 $artCache = @{}
 $sentArt = @{}
 $artTries = @{}
@@ -35,7 +37,7 @@ function Get-Art($session, $props, $key) {
     try {
         if ($props.Thumbnail) {
             $ras = Await ($props.Thumbnail.OpenReadAsync()) $StreamType
-            if ($ras.Size -lt 2MB) {
+            if ($ras -and $ras.Size -lt 2MB) {
                 $net = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($ras)
                 $ms = New-Object System.IO.MemoryStream
                 $net.CopyTo($ms)
@@ -43,7 +45,7 @@ function Get-Art($session, $props, $key) {
                 $data = "data:$mime;base64," + [Convert]::ToBase64String($ms.ToArray())
                 $ms.Dispose(); $net.Dispose()
             }
-            $ras.Dispose()
+            if ($ras) { $ras.Dispose() }
         }
     } catch { $data = $null }
     if ($data) {
@@ -61,6 +63,7 @@ function Read-Sessions {
     foreach ($s in $sessions) {
         try {
             $p = Await ($s.TryGetMediaPropertiesAsync()) $PropsType
+            if (-not $p) { $i++; continue }
             $info = $s.GetPlaybackInfo()
             $tl = $s.GetTimelineProperties()
             $status = $info.PlaybackStatus.ToString()
@@ -151,7 +154,10 @@ function Invoke-MediaCommand($cmd) {
     }
 }
 
-$stdin = [Console]::In
+# [Console]::In.ReadLineAsync() is NOT async in Windows PowerShell 5.1: it blocks until a line
+# arrives, which froze the helper before its first update. A StreamReader on the raw stdin
+# stream reads on a background thread instead.
+$stdin = New-Object System.IO.StreamReader([Console]::OpenStandardInput(), (New-Object System.Text.UTF8Encoding($false)))
 $pending = $stdin.ReadLineAsync()
 $nextPoll = [DateTime]::MinValue
 

@@ -91,6 +91,18 @@ class SmtcSource extends EventEmitter {
     if (this.mode === 'encoded') args = [...base, '-EncodedCommand', encodeScript(code)];
 
     this.emit('log', `Starting Windows media helper (${this.mode === 'file' ? 'script file' : 'inline'} mode)`);
+    // Watchdog: the helper should report within seconds. If it goes quiet, restart it.
+    clearInterval(this.watchdog);
+    this.lastLineAt = Date.now();
+    this.watchdog = setInterval(() => {
+      if (!this.proc || this.stopped) return;
+      const quiet = Date.now() - this.lastLineAt;
+      if (quiet > (this.gotOutput ? 20_000 : 30_000)) {
+        this.emit('log', `Media helper ${this.gotOutput ? 'stopped answering' : 'started but never answered'} — restarting it`);
+        this.hung = true;
+        try { this.proc.kill(); } catch (_) { /* ignore */ }
+      }
+    }, 5000);
     let proc;
     try {
       proc = spawn(exe, args, { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
@@ -102,6 +114,7 @@ class SmtcSource extends EventEmitter {
     this.proc = proc;
     proc.stdout.setEncoding('utf8');
     readline.createInterface({ input: proc.stdout }).on('line', (line) => {
+      this.lastLineAt = Date.now();
       if (!this.gotOutput) {
         this.gotOutput = true;
         this.emit('log', 'Windows media helper is running');
@@ -124,7 +137,9 @@ class SmtcSource extends EventEmitter {
       this.emit('log', `Media helper stopped (exit code ${exitCode})${errText ? `: ${errText.slice(0, 500)}` : ''}`);
       this.emit('players', []);
       // Died before saying anything in file mode → try the inline mode next time.
-      if (this.mode === 'file' && !this.gotOutput) {
+      const hung = this.hung;
+      this.hung = false;
+      if (this.mode === 'file' && !this.gotOutput && !hung) {
         this.mode = 'encoded';
         this.emit('log', 'Trying the inline mode instead (works when scripts are blocked by policy or antivirus)');
         this.restart = setTimeout(() => this.start(), 500);
@@ -138,6 +153,7 @@ class SmtcSource extends EventEmitter {
   stop() {
     this.stopped = true;
     clearTimeout(this.restart);
+    clearInterval(this.watchdog);
     if (this.proc) {
       try { this.proc.stdin.end(); } catch (_) { /* ignore */ }
       try { this.proc.kill(); } catch (_) { /* ignore */ }

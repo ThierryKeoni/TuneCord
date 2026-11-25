@@ -1,7 +1,7 @@
 {
   "name": "tunecord",
   "productName": "TuneCord",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Show what you're listening to (Spotify, Apple Music, TIDAL, SoundCloud and more) as Discord Rich Presence, without linking Spotify to Discord.",
   "main": "src/main/main.js",
   "author": {
