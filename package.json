@@ -1,0 +1,63 @@
+{
+  "name": "tunecord",
+  "productName": "TuneCord",
+  "version": "1.0.0",
+  "description": "Show what you're listening to (Spotify, Apple Music, TIDAL, SoundCloud and more) as Discord Rich Presence, without linking Spotify to Discord.",
+  "main": "src/main/main.js",
+  "author": "TuneCord",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "start:headless": "electron . --headless",
+    "test": "node --test --test-force-exit test/*.test.js",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
+  },
+  "dependencies": {
+    "dbus-next": "^0.10.2",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "app.tunecord.desktop",
+    "productName": "TuneCord",
+    "artifactName": "TuneCord-${version}-${os}-${arch}.${ext}",
+    "files": ["src/**/*", "assets/**/*", "!assets/presence/**", "package.json"],
+    "asarUnpack": ["src/media/smtc.ps1"],
+    "directories": { "buildResources": "build", "output": "dist" },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "TuneCord-Setup-${version}.exe"
+    },
+    "portable": { "artifactName": "TuneCord-Portable-${version}.exe" },
+    "mac": {
+      "target": [{ "target": "dmg", "arch": ["universal"] }],
+      "category": "public.app-category.music",
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "NSAppleEventsUsageDescription": "TuneCord reads what Spotify and Music are playing so it can show it on your Discord profile, and lets you control playback."
+      }
+    },
+    "linux": {
+      "target": ["AppImage", "deb", "tar.gz"],
+      "category": "Audio",
+      "synopsis": "Your music as Discord Rich Presence"
+    }
+  }
+}

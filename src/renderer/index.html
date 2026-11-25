@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' data: https: file:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'none'">
+  <title>TuneCord</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="ambient"></div>
+  <div class="drag"></div>
+
+  <!-- ============ MINI PLAYER ============ -->
+  <section id="mini">
+    <div class="mini-art art"></div>
+    <div class="mini-meta">
+      <div class="mini-title t-title">Nothing playing</div>
+      <div class="mini-sub t-artist"></div>
+      <div class="mini-bar"><i class="t-prog"></i></div>
+    </div>
+    <div class="mini-ctl">
+      <button class="icon-btn" data-ctl="previous" title="Previous"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
+      <button class="icon-btn pp" data-ctl="playpause" title="Play/Pause"><svg viewBox="0 0 24 24" class="pp-icon"><path d="M8 5v14l11-7z"/></svg></button>
+      <button class="icon-btn" data-ctl="next" title="Next"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+    </div>
+    <div class="mini-side">
+      <button class="switch js-status-toggle" title="Show on Discord"></button>
+      <button class="icon-btn small" id="mini-expand" title="Back to full window"><svg viewBox="0 0 24 24"><path d="M4 4h7v2H6v5H4zm16 16h-7v-2h5v-5h2z"/></svg></button>
+    </div>
+  </section>
+
+  <!-- ============ FULL APP ============ -->
+  <div id="app">
+    <nav class="rail">
+      <div class="brand">
+        <div class="logo"><span></span><span></span><span></span><span></span></div>
+        <div class="brand-name">Tune<b>Cord</b></div>
+      </div>
+      <button class="nav active" data-page="now"><svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg><span>Now playing</span></button>
+      <button class="nav" data-page="presence"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-6l-4 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm2 4v2h12V8zm0 4v2h8v-2z"/></svg><span>Presence</span></button>
+      <button class="nav" data-page="sources"><svg viewBox="0 0 24 24"><path d="M4 6h16v10H4zM2 18h20v2H2z"/></svg><span>Sources</span></button>
+      <button class="nav" data-page="stats"><svg viewBox="0 0 24 24"><path d="M5 20V10h3v10zm5.5 0V4h3v16zM16 20v-7h3v7z"/></svg><span>Stats</span></button>
+      <button class="nav" data-page="remote"><svg viewBox="0 0 24 24"><path d="M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm0 3v13h10V5zm5 15.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg><span>Phone remote</span></button>
+      <button class="nav" data-page="settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.9a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.5 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1L11 21h4l.4-2.9c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg><span>Settings</span></button>
+      <div class="rail-foot">
+        <button class="nav" id="go-mini" title="Mini player"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3zm9 6v6h7v-6z"/></svg><span>Mini player</span></button>
+        <div class="dc-pill" id="dc-pill"><i></i><span>Discord</span></div>
+      </div>
+    </nav>
+
+    <main>
+      <!-- NOW PLAYING -->
+      <section class="page active" id="page-now">
+        <div class="banner" id="setup-banner" hidden>
+          <div><b id="setup-title">Connect Discord</b><br><span class="muted" id="setup-text"></span></div>
+          <button class="btn primary" data-goto="settings" id="setup-btn">Set up</button>
+        </div>
+
+        <div class="hero">
+          <div class="hero-art art"><div class="art-empty"><svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg></div></div>
+          <div class="hero-body">
+            <div class="eyebrow"><span class="dot"></span><span class="t-player">Waiting for music</span></div>
+            <h1 class="t-title">Nothing playing</h1>
+            <div class="hero-sub t-artist">Start Spotify, Apple Music, TIDAL, SoundCloud or any player and it shows up here.</div>
+            <div class="seek" id="seek"><div class="seek-fill t-prog"></div><div class="seek-knob"></div></div>
+            <div class="times"><span class="t-pos">0:00</span><span class="t-dur">0:00</span></div>
+            <div class="controls">
+              <button class="icon-btn" data-ctl="previous" title="Previous"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
+              <button class="icon-btn pp big" data-ctl="playpause" title="Play/Pause"><svg viewBox="0 0 24 24" class="pp-icon"><path d="M8 5v14l11-7z"/></svg></button>
+              <button class="icon-btn" data-ctl="next" title="Next"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+              <div class="share" id="share">
+                <button class="chip ghost" data-share="copy" title="Copy what's playing">Copy</button>
+                <button class="chip ghost" data-share="spotify">Spotify</button>
+                <button class="chip ghost" data-share="appleMusic">Apple Music</button>
+                <button class="chip ghost" data-share="tidal">TIDAL</button>
+                <button class="chip ghost" data-share="soundcloud">SoundCloud</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cards-row">
+          <div class="card">
+            <div class="card-head">
+              <h3>What your friends see</h3>
+              <button class="switch js-status-toggle" title="Show on Discord"></button>
+            </div>
+            <div class="dc-preview" data-preview="now"></div>
+            <div class="friend-note" id="friend-note"></div>
+          </div>
+
+          <div class="card players">
+            <div class="card-head"><h3>Players</h3><span class="muted small" id="backend"></span></div>
+            <div id="player-list" class="player-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PRESENCE -->
+      <section class="page" id="page-presence">
+        <header class="page-head"><h2>Presence</h2><p class="muted">Design the card on your Discord profile and the line in the member list.</p></header>
+
+        <div class="presence-grid">
+          <div>
+            <div class="card">
+              <label class="label">Lines</label>
+              <div class="tpl-row"><span class="tpl-name">Top line</span><input class="input mono" data-tpl="details" spellcheck="false"></div>
+              <div class="tpl-row"><span class="tpl-name">Second line</span><input class="input mono" data-tpl="state" spellcheck="false"></div>
+              <div class="tpl-row"><span class="tpl-name">Album text</span><input class="input mono" data-tpl="largeText" spellcheck="false"></div>
+              <div class="tokens" id="tokens"></div>
+              <div class="presets" id="presets"></div>
+              <p class="hint">Click a token to insert it into the field you last clicked. Wrap optional parts in <code>[ ]</code>: <code>[by {artist}]</code> disappears when there's no artist.</p>
+            </div>
+
+            <div class="card">
+              <label class="label">Look</label>
+              <div class="opt"><span>Discord shows</span>
+                <div class="seg" data-cfg-seg="presence.activityType"><button data-v="listening">Listening to…</button><button data-v="playing">Playing…</button></div></div>
+              <div class="opt"><span>Member list shows</span>
+                <div class="seg" data-cfg-seg="presence.statusLine"><button data-v="artist">Artist</button><button data-v="title">Song</button><button data-v="app">App name</button></div></div>
+              <div class="opt"><span>Time</span>
+                <div class="seg" data-cfg-seg="presence.timestamps"><button data-v="progress">Progress bar</button><button data-v="elapsed">Elapsed</button><button data-v="none">None</button></div></div>
+              <div class="row-between"><span>Play / pause icon on the cover</span><button class="switch" data-cfg-on="presence.icon" data-on="state" data-off="none"></button></div>
+              <div class="row-between"><span>Song and artist are clickable links</span><button class="switch" data-cfg="presence.clickableText"></button></div>
+            </div>
+
+            <div class="card">
+              <label class="label">Buttons</label>
+              <p class="hint" style="margin-top:0">Up to two buttons under your status. Friends can click them; you can't see your own (that's how Discord works).</p>
+              <div class="row"><span class="muted grow">Button 1</span><select class="input select" data-button="0"></select></div>
+              <div class="row"><span class="muted grow">Button 2</span><select class="input select" data-button="1"></select></div>
+            </div>
+
+            <div class="card">
+              <label class="label">When music is paused</label>
+              <div class="seg" data-cfg-seg="paused.behavior">
+                <button data-v="show">Show as paused</button><button data-v="keep">Keep as is</button><button data-v="clear">Hide</button>
+              </div>
+              <div class="row"><label class="muted grow">Wait before changing</label><input class="input num" type="number" min="0" data-cfg-num="paused.graceSec"><span class="muted">sec</span></div>
+              <div class="row"><label class="muted grow">Hide a paused song after</label><input class="input num" type="number" min="0" data-cfg-num="paused.clearAfterMin"><span class="muted">min</span></div>
+            </div>
+
+            <div class="card">
+              <label class="label">Guilty-pleasure filter 🙈</label>
+              <p class="hint" style="margin-top:0">Songs whose title, artist or album contain any of these never reach Discord.</p>
+              <div class="taglist" id="hide-list"></div>
+              <input class="input" id="hide-add" placeholder="Add an artist or word and press Enter">
+              <label class="label sm">Show this instead</label>
+              <input class="input" data-cfg-text="privacy.hiddenText">
+            </div>
+          </div>
+
+          <div class="sticky">
+            <div class="card">
+              <h3>Live preview</h3>
+              <div class="dc-preview" data-preview="presence"></div>
+              <p class="hint" id="preview-note"></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SOURCES -->
+      <section class="page" id="page-sources">
+        <header class="page-head"><h2>Sources</h2><p class="muted">Every app that reports what it's playing. Pin one, hide the ones you don't want on Discord, or give a browser a better name.</p></header>
+        <div class="card">
+          <div class="seg" id="source-mode">
+            <button data-v="auto">Auto: whatever is playing</button><button data-v="pinned">Pinned player only</button>
+          </div>
+          <div id="source-list" class="source-list"></div>
+          <p class="hint" id="source-hint"></p>
+        </div>
+        <div class="card tip">
+          <b>Already linked Spotify to Discord?</b>
+          <p class="hint">Then Discord shows Spotify by itself. Turn Spotify off here so you don't appear twice, or unlink Spotify in Discord → Settings → Connections and let TuneCord handle everything.</p>
+          <b>SoundCloud or YouTube Music in a browser?</b>
+          <p class="hint">On Windows and Mac a browser tab shows up as "Chrome", "Edge" or "Firefox". Type <i>SoundCloud</i> in the "Show as" box next to it. On Linux TuneCord recognises the site by itself.</p>
+        </div>
+      </section>
+
+      <!-- STATS -->
+      <section class="page" id="page-stats">
+        <header class="page-head row-between"><div><h2>Listening stats</h2><p class="muted">Stored only on this computer.</p></div><button class="btn ghost" id="stats-clear">Reset stats</button></header>
+        <div class="kpis">
+          <div class="kpi"><div class="kpi-v" id="k-today">0</div><div class="kpi-l">minutes today</div></div>
+          <div class="kpi"><div class="kpi-v" id="k-streak">0</div><div class="kpi-l">day streak 🔥</div></div>
+          <div class="kpi"><div class="kpi-v" id="k-plays">0</div><div class="kpi-l">tracks played</div></div>
+          <div class="kpi"><div class="kpi-v" id="k-total">0</div><div class="kpi-l">hours total</div></div>
+        </div>
+        <div class="grid2">
+          <div class="card"><h3>Last 7 days</h3><div class="week" id="week"></div></div>
+          <div class="card"><h3>Top artists</h3><ol class="rank" id="top-artists"></ol></div>
+          <div class="card"><h3>Top tracks</h3><ol class="rank" id="top-tracks"></ol></div>
+          <div class="card"><h3>Recently played</h3><ul class="recent" id="recent"></ul></div>
+        </div>
+      </section>
+
+      <!-- REMOTE -->
+      <section class="page" id="page-remote">
+        <header class="page-head"><h2>Phone remote</h2><p class="muted">Control music and your Discord status from your phone.</p></header>
+        <div class="card remote-card">
+          <div class="remote-qr" id="remote-qr"><span class="muted">Turn on to get a QR code</span></div>
+          <div class="remote-body">
+            <div class="row-between"><label class="label">Enable phone remote</label><button class="switch" data-cfg="remote.enabled"></button></div>
+            <p class="hint">Scan with your phone's camera. Your phone must be on the same Wi-Fi. The link contains a private key: anyone with it can control your music.</p>
+            <div class="url-box"><code id="remote-url">—</code><button class="chip" id="remote-copy">Copy</button></div>
+            <div class="row"><label class="muted">Port</label><input class="input num" type="number" data-cfg-num="remote.port"><button class="btn ghost" id="remote-regen">New private link</button></div>
+            <p class="hint warn" id="remote-err" hidden></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="page" id="page-settings">
+        <header class="page-head"><h2>Settings</h2></header>
+
+        <div class="card" id="discord-card">
+          <div class="row-between"><h3>Discord</h3><span class="dc-pill" id="dc-pill-2"><i></i><span>—</span></span></div>
+          <div class="dc-user" id="dc-user">
+            <div class="dc-avatar" id="dc-avatar"></div>
+            <div class="grow"><div class="dc-name" id="dc-name">Not connected</div><div class="muted small" id="dc-detail"></div></div>
+            <button class="btn ghost" id="dc-reconnect">Reconnect</button>
+            <button class="btn primary" id="dc-test" title="Shows a sample song on your profile for 30 seconds">Send test</button>
+          </div>
+          <p class="hint">TuneCord talks to the Discord app on this computer. No Discord login, no Spotify link, no password. Just keep Discord open.</p>
+
+          <label class="label sm">Discord Application ID</label>
+          <div class="row" style="margin-top:0">
+            <input class="input mono" id="client-id" placeholder="e.g. 1311223344556677889" inputmode="numeric">
+            <button class="btn" id="client-id-save">Save</button>
+          </div>
+          <p class="hint" id="client-id-hint"></p>
+          <div class="row"><span class="muted grow">Name of that application <span class="small">(only used for the preview here)</span></span><input class="input" style="width:200px" data-cfg-text="discord.appName"></div>
+          <details class="howto" id="howto">
+            <summary>How do I get an Application ID? (2 minutes)</summary>
+            <ol>
+              <li>Open <a href="#" data-url="https://discord.com/developers/applications">discord.com/developers/applications</a> and sign in.</li>
+              <li>Click <b>New Application</b>. The name you pick is what appears after "Listening to", e.g. <i>Music</i>.</li>
+              <li>Copy the <b>Application ID</b> on the General Information page and paste it above.</li>
+              <li>Optional: upload an app icon there. That's all, no bot or secret needed.</li>
+            </ol>
+          </details>
+
+          <details class="howto">
+            <summary>Different app per player (optional): "Listening to TIDAL", "Listening to Apple Music"…</summary>
+            <p class="hint">Make one application per service, named after it, and paste its ID next to the player. Empty = use the ID above.</p>
+            <div class="per-player" id="per-player" style="margin-top:10px"></div>
+          </details>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <h3>Global hotkeys</h3>
+            <div class="hotkeys">
+              <label>Toggle Discord status</label><input class="input mono hk" data-hk="toggleStatus" placeholder="Click and press keys">
+              <label>Play / pause</label><input class="input mono hk" data-hk="playPause" placeholder="Not set">
+              <label>Next track</label><input class="input mono hk" data-hk="next" placeholder="Not set">
+              <label>Previous track</label><input class="input mono hk" data-hk="previous" placeholder="Not set">
+            </div>
+            <p class="hint">Backspace clears a hotkey.</p>
+          </div>
+
+          <div class="card">
+            <h3>App</h3>
+            <div class="row-between"><span>Start when I log in</span><button class="switch" data-cfg="app.autostart"></button></div>
+            <div class="row-between"><span>Start hidden in the tray</span><button class="switch" data-cfg="app.startHidden"></button></div>
+            <div class="row-between"><span>Closing the window keeps it running</span><button class="switch" data-cfg="app.closeToTray"></button></div>
+            <div class="row-between"><span>Colors follow album art</span><button class="switch" id="theme-switch"></button></div>
+            <div class="row-between"><span>Keep listening stats</span><button class="switch" data-cfg="history.enabled"></button></div>
+          </div>
+
+          <div class="card wide">
+            <div class="row-between"><h3>Activity</h3><button class="chip" id="open-logs">Open log folder</button></div>
+            <pre class="log" id="log"></pre>
+          </div>
+        </div>
+        <p class="muted small foot" id="version"></p>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="mock.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
