@@ -46,7 +46,7 @@
     current: playing ? track : null,
     players: playing ? [{ id: 'smtc#0', player: 'TIDAL', app: 'TIDAL', title: track.title, artist: track.artist, status: track.status }, { id: 'smtc#1', player: 'SoundCloud', app: 'Chrome', title: 'Lo-fi beats to relax to', artist: 'Lofi Girl', status: 'paused' }] : [],
     pinned: config.sources.pinned,
-    discord: dstatus === 'ready' ? { status: 'ready', user: { id: '1', name: 'Thijs', username: 'thierrykeoni', avatar: null } } : { status: dstatus, user: null },
+    discord: dstatus === 'ready' ? { status: 'ready', user: { id: '1', name: 'Alex', username: 'alex', avatar: null } } : { status: dstatus, user: null },
     hasClientId: !!config.discord.clientId,
     media: { backend: 'Windows Media Session', error: null }
   });
@@ -60,7 +60,7 @@
   const merge = (a, b) => { for (const k in b) { if (b[k] && typeof b[k] === 'object' && !Array.isArray(b[k]) && a[k]) merge(a[k], b[k]); else a[k] = b[k]; } };
   const on = (ch) => (f) => listeners[ch].push(f);
   window.tunecord = {
-    init: async () => ({ state: state(), config, logs: ['11:48:02  Connected to Discord as Thijs', '11:48:05  Discord → Midnight City · M83'], platform: 'win32', version: '1.0.0', builtinClientId: false }),
+    init: async () => ({ state: state(), config, logs: ['11:48:02  Connected to Discord as Alex', '11:48:05  Discord → Midnight City · M83'], platform: 'win32', version: '1.0.0', builtinClientId: false }),
     onState: on('state'), onConfig: on('config'), onLog: on('log'),
     setConfig: async (p) => { merge(config, p); setTimeout(() => emit('state', state())); return config; },
     replaceConfig: async (path, v) => { const ks = path.split('.'); let o = config; ks.slice(0, -1).forEach((k) => { o = o[k]; }); o[ks.at(-1)] = v; setTimeout(() => emit('state', state())); return config; },

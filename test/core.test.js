@@ -206,7 +206,7 @@ function fakeDiscord({ rejectNewFields = false } = {}) {
         got.push({ op, data });
         if (op === OP.HANDSHAKE) {
           if (data.client_id === '000000000000000000') { s.write(encode(OP.CLOSE, { code: 4000, message: 'Invalid Client ID' })); s.end(); continue; }
-          s.write(encode(OP.FRAME, { cmd: 'DISPATCH', evt: 'READY', data: { user: { id: '42', username: 'thijs', global_name: 'Thijs', avatar: 'abc' } } }));
+          s.write(encode(OP.FRAME, { cmd: 'DISPATCH', evt: 'READY', data: { user: { id: '42', username: 'alex', global_name: 'Alex', avatar: 'abc' } } }));
         }
         if (op === OP.FRAME && data.cmd === 'SET_ACTIVITY') {
           const a = data.args.activity;
@@ -234,7 +234,7 @@ test('IPC: handshake, READY user, SET_ACTIVITY', async () => {
   const dc = new DiscordConnection({ clientId: CLIENT, paths: ['/nope/discord-ipc-0', fd.sockPath] });
   dc.start();
   assert.ok(await until(() => dc.isReady()));
-  assert.strictEqual(dc.getState().user.name, 'Thijs');
+  assert.strictEqual(dc.getState().user.name, 'Alex');
   assert.match(dc.getState().user.avatar, /cdn\.discordapp\.com\/avatars\/42\/abc\.png/);
   dc.setActivity({ type: 2, details: 'Midnight City', state: 'M83' });
   assert.ok(await until(() => fd.got.some((g) => g.data && g.data.cmd === 'SET_ACTIVITY')));

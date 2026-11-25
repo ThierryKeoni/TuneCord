@@ -4,7 +4,7 @@ Show what you're listening to as your **Discord status**: Spotify, Apple Music, 
 
 Your friends see:
 
-> **Thijs**
+> **Alex**
 > Listening to **M83**
 >
 > *Listening to Music*
