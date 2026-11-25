@@ -4,7 +4,10 @@
   "version": "1.0.0",
   "description": "Show what you're listening to (Spotify, Apple Music, TIDAL, SoundCloud and more) as Discord Rich Presence, without linking Spotify to Discord.",
   "main": "src/main/main.js",
-  "author": "TuneCord",
+  "author": {
+    "name": "ThierryKeoni",
+    "email": "ThierryKeoni@users.noreply.github.com"
+  },
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -28,13 +31,33 @@
     "appId": "app.tunecord.desktop",
     "productName": "TuneCord",
     "artifactName": "TuneCord-${version}-${os}-${arch}.${ext}",
-    "files": ["src/**/*", "assets/**/*", "!assets/presence/**", "package.json"],
-    "asarUnpack": ["src/media/smtc.ps1"],
-    "directories": { "buildResources": "build", "output": "dist" },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "!assets/presence/**",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "src/media/smtc.ps1"
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "build/icon.png"
     },
@@ -43,9 +66,18 @@
       "allowToChangeInstallationDirectory": true,
       "artifactName": "TuneCord-Setup-${version}.exe"
     },
-    "portable": { "artifactName": "TuneCord-Portable-${version}.exe" },
+    "portable": {
+      "artifactName": "TuneCord-Portable-${version}.exe"
+    },
     "mac": {
-      "target": [{ "target": "dmg", "arch": ["universal"] }],
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
       "category": "public.app-category.music",
       "hardenedRuntime": true,
       "entitlements": "build/entitlements.mac.plist",
@@ -55,9 +87,15 @@
       }
     },
     "linux": {
-      "target": ["AppImage", "deb", "tar.gz"],
+      "target": [
+        "AppImage",
+        "deb",
+        "tar.gz"
+      ],
       "category": "Audio",
-      "synopsis": "Your music as Discord Rich Presence"
+      "synopsis": "Your music as Discord Rich Presence",
+      "maintainer": "ThierryKeoni <ThierryKeoni@users.noreply.github.com>"
     }
-  }
+  },
+  "homepage": "https://github.com/ThierryKeoni/TuneCord"
 }
