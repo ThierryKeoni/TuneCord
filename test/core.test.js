@@ -336,3 +336,13 @@ test('empty TIDAL media session falls back to the window title', () => {
   const { last } = smtcRun([[empty, win]]);
   assert.ok(last.some((p) => p.fromWindow && p.title === 'Midnight City'));
 });
+
+test('inline helper fits the Windows command-line limit and round-trips', () => {
+  const { encodeScript } = require('../src/media/windows-smtc');
+  const code = fs.readFileSync(path.join(__dirname, '..', 'src', 'media', 'smtc.ps1'), 'utf8');
+  const enc = encodeScript(code);
+  assert.ok(enc.length < 30000, `encoded length ${enc.length}`);
+  const back = Buffer.from(enc, 'base64').toString('utf16le');
+  assert.match(back, /GlobalSystemMediaTransportControlsSessionManager/);
+  assert.ok(!/^\s*#/m.test(back));
+});

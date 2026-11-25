@@ -29,6 +29,12 @@ const FRIENDLY = [
   [/vlc/i, 'VLC']
 ];
 
+/** PowerShell -EncodedCommand wants UTF-16LE base64. Comment lines are dropped to stay well under the 32k command-line limit. */
+function encodeScript(code) {
+  const slim = code.split(/\r?\n/).filter((l) => !/^\s*#/.test(l) && l.trim()).join('\n');
+  return Buffer.from(slim, 'utf16le').toString('base64');
+}
+
 function friendlyName(aumid) {
   for (const [re, name] of FRIENDLY) if (re.test(aumid)) return name;
   return String(aumid || 'Unknown').replace(/\.exe$/i, '').split(/[!_.]/)[0];
@@ -45,32 +51,85 @@ class SmtcSource extends EventEmitter {
     this.lastSummary = '';
   }
 
+  /**
+   * Starts the PowerShell helper. Two ways, because some PCs block one of them:
+   *  - 'file':    script copied to %TEMP% and run with -File (normal)
+   *  - 'encoded': script passed inline with -EncodedCommand. Works when company policy
+   *               (Group Policy / Intune) forces an execution policy or antivirus blocks
+   *               .ps1 files in %TEMP%.
+   */
   start() {
     this.stopped = false;
-    const src = path.join(__dirname, 'smtc.ps1');
-    // PowerShell can't read from inside app.asar, so copy the script out first.
-    const script = path.join(os.tmpdir(), 'tunecord-smtc.ps1');
+    this.gotOutput = false;
+    this.stderr = '';
+    this.startedAt = Date.now();
+    if (!this.mode) this.mode = 'file';
+    let code;
     try {
-      fs.writeFileSync(script, fs.readFileSync(src, 'utf8'), 'utf8');
+      code = fs.readFileSync(path.join(__dirname, 'smtc.ps1'), 'utf8');
     } catch (err) {
       this.fail(err);
+      this.emit('log', `Media helper: can't read smtc.ps1 (${err.message})`);
       return;
     }
     const exe = process.env.SystemRoot
       ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
       : 'powershell.exe';
-    this.proc = spawn(exe, ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script], {
-      windowsHide: true,
-      stdio: ['pipe', 'pipe', 'pipe']
+    const base = ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass'];
+    let args;
+    if (this.mode === 'file') {
+      // PowerShell can't read from inside app.asar, so copy the script out first.
+      const script = path.join(os.tmpdir(), 'tunecord-smtc.ps1');
+      try {
+        fs.writeFileSync(script, code, 'utf8');
+        args = [...base, '-File', script];
+      } catch (err) {
+        this.emit('log', `Media helper: can't write to the temp folder (${err.message}) — using inline mode`);
+        this.mode = 'encoded';
+      }
+    }
+    if (this.mode === 'encoded') args = [...base, '-EncodedCommand', encodeScript(code)];
+
+    this.emit('log', `Starting Windows media helper (${this.mode === 'file' ? 'script file' : 'inline'} mode)`);
+    let proc;
+    try {
+      proc = spawn(exe, args, { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    } catch (err) {
+      this.fail(err);
+      this.emit('log', `Media helper: PowerShell could not be started (${err.message})`);
+      return;
+    }
+    this.proc = proc;
+    proc.stdout.setEncoding('utf8');
+    readline.createInterface({ input: proc.stdout }).on('line', (line) => {
+      if (!this.gotOutput) {
+        this.gotOutput = true;
+        this.emit('log', 'Windows media helper is running');
+      }
+      this.onLine(line);
     });
-    this.proc.stdout.setEncoding('utf8');
-    readline.createInterface({ input: this.proc.stdout }).on('line', (line) => this.onLine(line));
-    this.proc.stderr.on('data', (d) => { this.lastError = String(d).trim().slice(0, 300); });
-    this.proc.on('error', (err) => this.fail(err));
-    this.proc.on('exit', () => {
-      this.proc = null;
+    proc.stderr.setEncoding('utf8');
+    proc.stderr.on('data', (d) => {
+      this.stderr = (this.stderr + d).slice(-4000);
+      this.lastError = String(d).trim().slice(0, 300);
+    });
+    proc.on('error', (err) => {
+      this.fail(err);
+      this.emit('log', `Media helper: PowerShell could not be started (${err.message})`);
+    });
+    proc.on('exit', (exitCode) => {
+      if (this.proc === proc) this.proc = null;
       if (this.stopped) return;
+      const errText = this.stderr.replace(/\s+/g, ' ').trim();
+      this.emit('log', `Media helper stopped (exit code ${exitCode})${errText ? `: ${errText.slice(0, 500)}` : ''}`);
       this.emit('players', []);
+      // Died before saying anything in file mode → try the inline mode next time.
+      if (this.mode === 'file' && !this.gotOutput) {
+        this.mode = 'encoded';
+        this.emit('log', 'Trying the inline mode instead (works when scripts are blocked by policy or antivirus)');
+        this.restart = setTimeout(() => this.start(), 500);
+        return;
+      }
       this.restart = setTimeout(() => this.start(), this.backoff);
       this.backoff = Math.min(this.backoff * 2, 60_000);
     });
@@ -153,4 +212,4 @@ class SmtcSource extends EventEmitter {
   }
 }
 
-module.exports = { SmtcSource, friendlyName };
+module.exports = { SmtcSource, friendlyName, encodeScript };
