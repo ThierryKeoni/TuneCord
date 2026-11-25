@@ -21,6 +21,7 @@ function socketCandidates(env = process.env, platform = process.platform) {
     for (let i = 0; i < 10; i++) out.push(`\\\\?\\pipe\\discord-ipc-${i}`);
     return out;
   }
+  const path = require('path').posix; // macOS/Linux socket paths, even when tested on Windows
   const base = env.XDG_RUNTIME_DIR || env.TMPDIR || env.TMP || env.TEMP || '/tmp';
   const dirs = [
     base,

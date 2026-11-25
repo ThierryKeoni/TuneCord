@@ -195,7 +195,9 @@ test('decoder handles split and joined packets', () => {
 });
 
 function fakeDiscord({ rejectNewFields = false } = {}) {
-  const sockPath = path.join(tmp(), 'discord-ipc-0');
+  const sockPath = process.platform === 'win32'
+    ? `\\\\?\\pipe\\tunecord-test-${process.pid}-${Math.random().toString(36).slice(2)}`
+    : path.join(tmp(), 'discord-ipc-0');
   const got = [];
   const server = net.createServer((s) => {
     const dec = new Decoder();
