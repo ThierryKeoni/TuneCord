@@ -5,7 +5,8 @@
 const cache = new Map();
 const MAX = 300;
 
-async function lookupArtwork(track) {
+/** Returns { art, duration } from iTunes (either may be null). */
+async function lookupTrack(track) {
   if (!track || !track.title) return null;
   const key = `${track.artist}|${track.title}`.toLowerCase();
   if (cache.has(key)) return cache.get(key);
@@ -21,12 +22,22 @@ async function lookupArtwork(track) {
     if (!res.ok) return null;
     const json = await res.json();
     const hit = json.results && json.results[0];
-    const url = hit && hit.artworkUrl100 ? hit.artworkUrl100.replace('100x100bb', '600x600bb') : null;
-    cache.set(key, url);
-    return url;
+    if (!hit) return null;
+    const out = {
+      art: hit.artworkUrl100 ? hit.artworkUrl100.replace('100x100bb', '600x600bb') : null,
+      duration: hit.trackTimeMillis ? hit.trackTimeMillis / 1000 : null,
+      album: hit.collectionName || null
+    };
+    cache.set(key, out);
+    return out;
   } catch (_) {
     return null;
   }
 }
 
-module.exports = { lookupArtwork };
+async function lookupArtwork(track) {
+  const r = await lookupTrack(track);
+  return r ? r.art : null;
+}
+
+module.exports = { lookupArtwork, lookupTrack };

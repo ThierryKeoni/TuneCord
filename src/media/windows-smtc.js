@@ -41,6 +41,8 @@ class SmtcSource extends EventEmitter {
     this.lastError = null;
     this.art = new Map();
     this.backoff = 2000;
+    this.firstSeen = new Map();   // window-title tracks: when we first saw them (for elapsed time)
+    this.lastSummary = '';
   }
 
   start() {
@@ -97,12 +99,25 @@ class SmtcSource extends EventEmitter {
     this.lastError = null;
 
     const now = Date.now();
+    this.logSessions(data);
+    // Prefer the real media session; use the window title only when the app reports nothing useful.
+    const realApps = new Set(data.filter((s) => !s.fromWindow && s.title).map((s) => friendlyName(s.aumid)));
+    data = data.filter((s) => !s.fromWindow || !realApps.has(friendlyName(s.aumid)));
     const players = data.map((s) => {
       const key = `${s.artist || ''}|${s.title || ''}`.toLowerCase();
       let cached = this.art.get(s.id);
       if (s.art) this.art.set(s.id, cached = { key: s.artKey, data: s.art });
       const artUrl = cached && cached.key === s.artKey ? cached.data : null;
       const st = String(s.status || '').toLowerCase();
+      let position = Number(s.position) || 0;
+      if (s.fromWindow) {
+        const fk = `${s.id}|${key}`;
+        if (!this.firstSeen.has(fk)) {
+          this.firstSeen.set(fk, now);
+          if (this.firstSeen.size > 50) this.firstSeen.delete(this.firstSeen.keys().next().value);
+        }
+        position = (now - this.firstSeen.get(fk)) / 1000;
+      }
       return {
         id: s.id,
         player: friendlyName(s.aumid),
@@ -110,16 +125,26 @@ class SmtcSource extends EventEmitter {
         artist: s.artist || '',
         album: s.album || '',
         duration: Number(s.duration) || 0,
-        position: Number(s.position) || 0,
+        position,
+        fromWindow: !!s.fromWindow,
+        canSeek: !s.fromWindow,
         status: st === 'playing' ? 'playing' : st === 'paused' ? 'paused' : 'stopped',
         artUrl,
         url: null,
         key,
-        updatedAt: now,
-        canSeek: true
+        updatedAt: now
       };
     });
     this.emit('players', players);
+  }
+
+  /** Write what Windows reports to the Activity log whenever it changes (helps when a player isn't detected). */
+  logSessions(data) {
+    const summary = data.map((s) => `${s.aumid || '?'}${s.fromWindow ? ' (window title)' : ''}: ${s.title ? `"${s.title}"` : 'no title'} [${s.status}]`).join(' · ') || 'none';
+    const shape = summary.replace(/"[^"]*"/g, 'x');
+    if (shape === this.lastSummary) return;
+    this.lastSummary = shape;
+    this.emit('log', `Windows media sessions: ${summary}`);
   }
 
   async control(id, action, arg) {

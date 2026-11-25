@@ -1,7 +1,7 @@
 'use strict';
 const EventEmitter = require('events');
 const { isHidden, shareLinks, serviceFromUrl, render } = require('./formatter');
-const { lookupArtwork } = require('./artwork');
+const { lookupTrack } = require('./artwork');
 const { buildActivity } = require('./presence');
 const { BUILTIN_CLIENT_ID } = require('./app-id');
 
@@ -29,6 +29,7 @@ class Engine extends EventEmitter {
     this.pausedSince = null;
     this.anchor = null;            // stable timestamps per track
     this.webArt = new Map();       // track key -> https art for Discord
+    this.extra = new Map();        // track key -> { duration, album } for players that don't report them
     this.activity = null;          // what we want Discord to show
     this.listen = { key: null, seconds: 0, scrobbled: false, lastTick: 0 };
   }
@@ -36,6 +37,7 @@ class Engine extends EventEmitter {
   start() {
     this.media.on('players', (players) => this.onPlayers(players));
     this.media.on('error', (err) => this.emit('log', `Media: ${err.message || err}`));
+    this.media.on('log', (m) => this.emit('log', m));
     if (this.discord) {
       this.discord.on('state', () => this.emitState());
       this.discord.on('sent', (a) => this.emit('log', a
@@ -66,7 +68,12 @@ class Engine extends EventEmitter {
         const player = rename[app] || serviceFromUrl(p.url) || app;
         const old = prev.get(p.id);
         const artUrl = p.artUrl || (old && old.key === p.key ? old.artUrl : null);
-        return { ...p, app, player, artUrl };
+        const ex = this.extra.get(p.key);
+        return {
+          ...p, app, player, artUrl,
+          duration: p.duration || (ex && ex.duration) || 0,
+          album: p.album || (ex && ex.album) || ''
+        };
       })
       .filter((p) => p.title && !blocked.includes(String(p.player).toLowerCase()) && !blocked.includes(String(p.app).toLowerCase()));
 
@@ -97,8 +104,18 @@ class Engine extends EventEmitter {
     if (this.webArt.has(key)) return;
     this.webArt.set(key, null);
     if (this.webArt.size > 300) this.webArt.delete(this.webArt.keys().next().value);
-    const url = await lookupArtwork(track);
-    if (!url) return;
+    const found = await lookupTrack(track);
+    if (found && track.fromWindow && (found.duration || found.album)) {
+      this.extra.set(key, { duration: found.duration, album: found.album });
+      if (this.extra.size > 300) this.extra.delete(this.extra.keys().next().value);
+      for (const p of this.players) {
+        if (p.key !== key) continue;
+        if (!p.duration && found.duration) p.duration = found.duration;
+        if (!p.album && found.album) p.album = found.album;
+      }
+    }
+    const url = found && found.art;
+    if (!url) { this.tick(); return; }
     this.webArt.set(key, url);
     if (this.current && this.current.key === key && !this.current.artUrl) {
       this.current.artUrl = url;

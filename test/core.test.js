@@ -298,3 +298,41 @@ test('IPC: no client id → asks for one', () => {
   assert.strictEqual(dc.getState().status, 'no-client-id');
   dc.stop();
 });
+
+/* ---------------- Windows: TIDAL window-title backup ---------------- */
+
+const { SmtcSource } = require('../src/media/windows-smtc');
+
+function smtcRun(lines) {
+  const src = new SmtcSource();
+  const out = []; const logs = [];
+  src.on('players', (p) => out.push(p));
+  src.on('log', (l) => logs.push(l));
+  for (const l of lines) src.onLine(JSON.stringify(l));
+  return { last: out.at(-1), logs };
+}
+const win = { id: 'window:TIDAL', aumid: 'TIDAL.exe', title: 'Midnight City', artist: 'M83', status: 'Playing', position: -1, duration: 0, fromWindow: true };
+
+test('TIDAL from the window title when Windows reports nothing', () => {
+  const { last, logs } = smtcRun([[win]]);
+  assert.strictEqual(last.length, 1);
+  assert.strictEqual(last[0].player, 'TIDAL');
+  assert.strictEqual(last[0].title, 'Midnight City');
+  assert.strictEqual(last[0].fromWindow, true);
+  assert.ok(last[0].position >= 0 && last[0].position < 1);
+  assert.match(logs[0], /TIDAL\.exe \(window title\)/);
+});
+
+test('real TIDAL media session wins over the window title', () => {
+  const real = { id: 'TIDAL.exe#0', aumid: 'TIDAL.exe', title: 'Midnight City', artist: 'M83', status: 'Playing', position: 30, duration: 243 };
+  const { last } = smtcRun([[real, win]]);
+  assert.strictEqual(last.length, 1);
+  assert.strictEqual(last[0].duration, 243);
+  assert.ok(!last[0].fromWindow);
+});
+
+test('empty TIDAL media session falls back to the window title', () => {
+  const empty = { id: 'TIDAL.exe#0', aumid: 'TIDAL.exe', title: '', artist: '', status: 'Playing', position: 0, duration: 0 };
+  const { last } = smtcRun([[empty, win]]);
+  assert.ok(last.some((p) => p.fromWindow && p.title === 'Midnight City'));
+});

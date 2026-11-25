@@ -98,7 +98,46 @@ function Read-Sessions {
     return ,$out
 }
 
+# Backup for apps that don't (fully) report to Windows: read the song from the window title.
+# TIDAL shows "Title - Artist" while playing and just "TIDAL" when paused.
+$WindowApps = @(@{ Process = 'TIDAL'; Aumid = 'TIDAL.exe' })
+function Read-Windows {
+    $out = New-Object System.Collections.ArrayList
+    foreach ($app in $WindowApps) {
+        $procs = @(Get-Process -Name $app.Process -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle })
+        foreach ($pr in $procs) {
+            $t = $pr.MainWindowTitle.Trim()
+            if ($t -eq '' -or $t -eq $app.Process) { continue }
+            $i = $t.LastIndexOf(' - ')
+            if ($i -gt 0) { $title = $t.Substring(0, $i); $artist = $t.Substring($i + 3) } else { $title = $t; $artist = '' }
+            [void]$out.Add([ordered]@{
+                id = "window:$($app.Process)"; aumid = $app.Aumid; title = $title; artist = $artist; album = ''
+                status = 'Playing'; position = -1; duration = 0; artKey = "window|$t"; art = $null; fromWindow = $true
+            })
+            break
+        }
+    }
+    return ,$out
+}
+
+try { Add-Type -Namespace TuneCord -Name Keys -MemberDefinition '[DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, System.UIntPtr extra);' } catch { }
+function Send-MediaKey([byte]$vk) {
+    if (-not ('TuneCord.Keys' -as [type])) { return }
+    [TuneCord.Keys]::keybd_event($vk, 0, 0, [System.UIntPtr]::Zero)
+    [TuneCord.Keys]::keybd_event($vk, 0, 2, [System.UIntPtr]::Zero)
+}
+
 function Invoke-MediaCommand($cmd) {
+    if ("$($cmd.id)".StartsWith('window:')) {
+        switch ($cmd.action) {
+            'playpause' { Send-MediaKey 0xB3 }
+            'play'      { Send-MediaKey 0xB3 }
+            'pause'     { Send-MediaKey 0xB3 }
+            'next'      { Send-MediaKey 0xB0 }
+            'previous'  { Send-MediaKey 0xB1 }
+        }
+        return
+    }
     $idx = [int]($cmd.id -split '#')[-1]
     $s = $script:lastSessions[$idx]
     if (-not $s) { return }
@@ -126,6 +165,7 @@ while ($true) {
     if ([DateTime]::Now -ge $nextPoll) {
         try {
             $sessions = Read-Sessions
+            try { foreach ($w in (Read-Windows)) { [void]$sessions.Add($w) } } catch { }
             [Console]::Out.WriteLine((ConvertTo-Json -InputObject @($sessions) -Compress -Depth 4))
             [Console]::Out.Flush()
         } catch {
