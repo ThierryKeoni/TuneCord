@@ -69,7 +69,9 @@ Without a built-in ID, users see a short "paste your Application ID" step in Set
 ### Publishing a release
 
 ```bash
-# bump "version" in package.json, commit, then:
+# 1. bump "version" in package.json
+# 2. write release-notes/v1.0.1.md (becomes the release description)
+# 3. commit, then:
 git tag v1.0.0
 git push origin v1.0.0
 ```
